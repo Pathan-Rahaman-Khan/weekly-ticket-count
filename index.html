@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="ticketApp">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Tickets Dashboard</title>
+  <link rel="icon" href="assets/ticket.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body ng-controller="TicketController as vm">
+
+<header class="topbar">
+  <div class="brand">
+    <img src="assets/ticket.svg" alt="Tickets">
+    <div>
+      <div class="brand-title">Daily Tickets</div>
+      <div class="brand-subtitle">Front-end Ticket Management</div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <span class="storage-status"><span class="status-dot"></span> Local Storage</span>
+    <button class="btn btn-light" ng-click="vm.exportData()">Export JSON</button>
+    <label class="btn btn-light import-btn">
+      Import JSON
+      <input type="file" accept=".json" onchange="angular.element(this).scope().vm.importData(this.files[0])">
+    </label>
+    <button class="btn btn-primary" ng-click="vm.openTicketModal()">+ Add Ticket</button>
+  </div>
+</header>
+
+<div class="page-wrap">
+  <div class="summary-strip">
+    <div class="summary-card">
+      <div class="summary-label">Today's New Tickets</div>
+      <div class="summary-value">{{vm.todayNew}}</div>
+      <div class="summary-note">Created today</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Resolved Today</div>
+      <div class="summary-value">{{vm.todayResolved}}</div>
+      <div class="summary-note">Resolved tickets</div>
+    </div>
+    <div class="summary-card warning">
+      <div class="summary-label">Pending</div>
+      <div class="summary-value">{{vm.totalPending}}</div>
+      <div class="summary-note">Open workload</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Total Tickets</div>
+      <div class="summary-value">{{vm.tickets.length}}</div>
+      <div class="summary-note">Stored locally</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button ng-class="{active: vm.activeTab === 'dashboard'}" ng-click="vm.activeTab='dashboard'">Weekly Dashboard</button>
+    <button ng-if="false" ng-class="{active: vm.activeTab === 'tickets'}" ng-click="vm.activeTab='tickets'">Ticket CRUD</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <section ng-show="vm.activeTab === 'dashboard'">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Weekly Tickets</h2>
+          <p>Seven-day ticket activity with change indicators</p>
+        </div>
+        <div class="panel-actions">
+          <button class="btn btn-primary" ng-click="vm.openTicketModal()">+ Add Ticket</button>
+          <button class="btn btn-default" ng-click="vm.goToCrud()">Manage All Tickets</button>
+          <button class="btn btn-warning" ng-click="vm.toggleWeeklyEdit()">{{vm.editWeekly ? 'Stop Editing' : 'Edit Weekly Values'}}</button>
+          <button class="btn btn-success" ng-if="vm.editWeekly" ng-click="vm.saveWeeklyValues()">Save Values</button>
+          <button class="btn btn-default" ng-if="vm.editWeekly" ng-click="vm.resetWeeklyValues()">Reset Values</button>
+        </div>
+        <div class="date-control">
+          <button class="btn btn-default" ng-click="vm.refresh()" title="Recalculate dashboard">↻ Refresh</button>
+          <button class="icon-btn" ng-click="vm.changeDay(-1)" title="Previous day">‹</button>
+          <input type="date" ng-model="vm.selectedDate" ng-change="vm.refresh()">
+          <button class="icon-btn" ng-click="vm.changeDay(1)" title="Next day">›</button>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="ticket-table">
+          <thead>
+            <tr>
+              <th class="sticky-col">Status</th>
+              <th ng-repeat="d in vm.days">{{d.label}}</th>
+              <th>Yesterday<br>Change</th>
+              <th class="today-head">Today<br>Tickets</th>
+              <th>Today<br>Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="metric-row">
+              <td class="sticky-col"><strong>Today New Tickets</strong></td>
+              <td ng-repeat="d in vm.days"><input ng-if="vm.editWeekly" class="cell-input" type="number" min="0" ng-model="vm.dashboardValues[d.key].new" ng-change="vm.setValue('new', d.key, vm.dashboardValues[d.key].new)"><span ng-if="!vm.editWeekly">{{vm.metric(d, 'new')}}</span></td>
+              <td>{{vm.change(vm.days[5], vm.days[6], 'new')}}</td>
+              <td class="today-cell"><input ng-if="vm.editWeekly" class="cell-input today-input" type="number" min="0" ng-model="vm.dashboardValues[vm.todayObject.key].new" ng-change="vm.setValue('new', vm.todayObject.key, vm.dashboardValues[vm.todayObject.key].new)"><span ng-if="!vm.editWeekly">{{vm.todayNew}}</span></td>
+              <td ng-class="vm.changeClass(vm.change(vm.days[6], vm.todayObject, 'new'))">{{vm.change(vm.days[6], vm.todayObject, 'new')}}</td>
+            </tr>
+            <tr>
+              <td class="sticky-col">Resolved</td>
+              <td ng-repeat="d in vm.days"><input ng-if="vm.editWeekly" class="cell-input" type="number" min="0" ng-model="vm.dashboardValues[d.key].resolved" ng-change="vm.setValue('resolved', d.key, vm.dashboardValues[d.key].resolved)"><span ng-if="!vm.editWeekly">{{vm.metric(d, 'resolved')}}</span></td>
+              <td>{{vm.change(vm.days[5], vm.days[6], 'resolved')}}</td>
+              <td class="today-cell"><input ng-if="vm.editWeekly" class="cell-input today-input" type="number" min="0" ng-model="vm.dashboardValues[vm.todayObject.key].resolved" ng-change="vm.setValue('resolved', vm.todayObject.key, vm.dashboardValues[vm.todayObject.key].resolved)"><span ng-if="!vm.editWeekly">{{vm.todayResolved}}</span></td>
+              <td ng-class="vm.changeClass(vm.change(vm.days[6], vm.todayObject, 'resolved'))">{{vm.change(vm.days[6], vm.todayObject, 'resolved')}}</td>
+            </tr>
+            <tr>
+              <td class="sticky-col">Pending</td>
+              <td ng-repeat="d in vm.days"><input ng-if="vm.editWeekly" class="cell-input" type="number" min="0" ng-model="vm.dashboardValues[d.key].pending" ng-change="vm.setValue('pending', d.key, vm.dashboardValues[d.key].pending)"><span ng-if="!vm.editWeekly">{{vm.metric(d, 'pending')}}</span></td>
+              <td>{{vm.change(vm.days[5], vm.days[6], 'pending')}}</td>
+              <td class="today-cell"><input ng-if="vm.editWeekly" class="cell-input today-input" type="number" min="0" ng-model="vm.dashboardValues[vm.todayObject.key].pending" ng-change="vm.setValue('pending', vm.todayObject.key, vm.dashboardValues[vm.todayObject.key].pending)"><span ng-if="!vm.editWeekly">{{vm.totalPending}}</span></td>
+              <td ng-class="vm.changeClass(vm.change(vm.days[6], vm.todayObject, 'pending'))">{{vm.change(vm.days[6], vm.todayObject, 'pending')}}</td>
+            </tr>
+            <tr class="section-row">
+              <td class="sticky-col"><strong>Today Total Resolved</strong></td>
+              <td ng-repeat="d in vm.days">{{vm.metric(d, 'resolvedTotal')}}</td>
+              <td>{{vm.change(vm.days[5], vm.days[6], 'resolvedTotal')}}</td>
+              <td class="today-cell">{{vm.todayResolved}}</td>
+              <td>{{vm.change(vm.days[6], vm.todayObject, 'resolvedTotal')}}</td>
+            </tr>
+            <tr ng-repeat="status in vm.pendingStatuses">
+              <td class="sticky-col">{{status}}</td>
+              <td ng-repeat="d in vm.days"><input ng-if="vm.editWeekly" class="cell-input" type="number" min="0" ng-model="vm.dashboardValues[d.key][status]" ng-change="vm.setValue(status, d.key, vm.dashboardValues[d.key][status])"><span ng-if="!vm.editWeekly">{{vm.metric(d, status)}}</span></td>
+              <td>{{vm.change(vm.days[5], vm.days[6], status)}}</td>
+              <td class="today-cell"><input ng-if="vm.editWeekly" class="cell-input today-input" type="number" min="0" ng-model="vm.dashboardValues[vm.todayObject.key][status]" ng-change="vm.setValue(status, vm.todayObject.key, vm.dashboardValues[vm.todayObject.key][status])"><span ng-if="!vm.editWeekly">{{vm.statusCount(status)}}</span></td>
+              <td ng-class="vm.changeClass(vm.change(vm.days[6], vm.todayObject, status))">{{vm.change(vm.days[6], vm.todayObject, status)}}</td>
+            </tr>
+            <tr class="section-row">
+              <td class="sticky-col"><strong>Total Pending</strong></td>
+              <td ng-repeat="d in vm.days">{{vm.metric(d, 'pending')}}</td>
+              <td>{{vm.change(vm.days[5], vm.days[6], 'pending')}}</td>
+              <td class="today-cell">{{vm.totalPending}}</td>
+              <td>{{vm.change(vm.days[6], vm.todayObject, 'pending')}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel-head selected-ticket-head">
+        <div>
+          <h2>Tickets for {{vm.selectedDate | date:'dd-MMM-yyyy'}}</h2>
+          <p>Add, edit or delete individual tickets here. Changes automatically update the weekly totals.</p>
+        </div>
+      </div>
+      <!-- <div class="table-scroll">
+        <table class="crud-table">
+          <thead><tr><th>Ticket ID</th><th>Title / Description</th><th>Category</th><th>Status</th><th>Assignee</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr ng-repeat="ticket in vm.ticketsForSelectedDate() track by ticket.id">
+              <td><span class="ticket-id">{{ticket.id}}</span></td>
+              <td><strong>{{ticket.title}}</strong><div class="muted">{{ticket.description}}</div></td>
+              <td>{{ticket.category}}</td>
+              <td><span class="badge" ng-class="vm.statusClass(ticket.status)">{{ticket.status}}</span></td>
+              <td>{{ticket.assignee || 'Unassigned'}}</td>
+              <td>{{ticket.createdDate | date:'dd-MMM-yyyy'}}</td>
+              <td class="actions"><button class="btn btn-xs btn-default" ng-click="vm.editTicket(ticket)">Edit</button> <button class="btn btn-xs btn-danger" ng-click="vm.deleteTicket(ticket)">Delete</button></td>
+            </tr>
+            <tr ng-if="vm.ticketsForSelectedDate().length === 0"><td colspan="7" class="empty">No tickets created for this date. Click “Add Ticket” to enter one.</td></tr>
+          </tbody>
+        </table>
+      </div> -->
+    </div>
+
+    <div class="panel chart-panel">
+      <div class="panel-head">
+        <div>
+          <h2>Pending Workload</h2>
+          <p>Current pending tickets by status</p>
+        </div>
+      </div>
+      <div class="bar-list">
+        <div class="bar-item" ng-repeat="status in vm.pendingStatuses">
+          <div class="bar-label"><span>{{status}}</span><strong>{{vm.statusCount(status)}}</strong></div>
+          <div class="bar-track"><div class="bar-fill" ng-style="{width: vm.barWidth(status) + '%'}"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CRUD -->
+  <section ng-show="vm.activeTab === 'tickets'" >
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Ticket Management</h2>
+          <p>Create, edit, delete and search tickets. All changes are saved in browser Local Storage.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="btn btn-default" ng-click="vm.resetDemoData()">Reset Demo</button>
+          <button class="btn btn-primary" ng-click="vm.openTicketModal()">+ Add Ticket</button>
+        </div>
+      </div>
+      <div class="action-message" ng-if="vm.lastAction">
+        {{vm.lastAction}} — Dashboard totals are recalculated from the current ticket data.
+      </div>
+
+      <div class="filters">
+        <input class="form-control" type="text" ng-model="vm.search" placeholder="Search ticket, title, assignee, category...">
+        <select class="form-control" ng-model="vm.filterStatus">
+          <option value="">All Statuses</option>
+          <option ng-repeat="s in vm.statuses" value="{{s}}">{{s}}</option>
+        </select>
+        <select class="form-control" ng-model="vm.filterCategory">
+          <option value="">All Categories</option>
+          <option ng-repeat="c in vm.categories" value="{{c}}">{{c}}</option>
+        </select>
+        <button class="btn btn-default" ng-click="vm.clearFilters()">Clear</button>
+      </div>
+
+      <!-- <div class="table-scroll">
+        <table class="crud-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Title</th><th>Category</th><th>Status</th><th>Assignee</th><th>Created</th><th>Resolved</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="ticket in vm.filteredTickets = (vm.tickets | filter:vm.search | filter:vm.statusFilter | filter:vm.categoryFilter | orderBy:'-createdDate')">
+              <td><span class="ticket-id">{{ticket.id}}</span></td>
+              <td><strong>{{ticket.title}}</strong><div class="muted">{{ticket.description | limitTo:70}}{{ticket.description.length > 70 ? '...' : ''}}</div></td>
+              <td>{{ticket.category}}</td>
+              <td><span class="badge" ng-class="vm.statusClass(ticket.status)">{{ticket.status}}</span></td>
+              <td>{{ticket.assignee || 'Unassigned'}}</td>
+              <td>{{ticket.createdDate | date:'dd-MMM-yyyy'}}</td>
+              <td>{{ticket.resolvedDate ? (ticket.resolvedDate | date:'dd-MMM-yyyy') : '—'}}</td>
+              <td class="actions">
+                <button class="btn btn-xs btn-default" ng-click="vm.editTicket(ticket)">Edit</button>
+                <button class="btn btn-xs btn-danger" ng-click="vm.deleteTicket(ticket)">Delete</button>
+              </td>
+            </tr>
+            <tr ng-if="vm.filteredTickets.length === 0">
+              <td colspan="8" class="empty">No tickets found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div> -->
+    </div>
+  </section>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" ng-show="vm.showModal" ng-click="vm.closeTicketModal()"></div>
+<div class="ticket-modal" ng-show="vm.showModal">
+  <div class="modal-header">
+    <div>
+      <h3>{{vm.editing ? 'Edit Ticket' : 'Create Ticket'}}</h3>
+      <span>{{vm.editing ? 'Update the ticket and save changes' : 'Add a new ticket to the local dashboard'}}</span>
+    </div>
+    <button class="close-btn" ng-click="vm.closeTicketModal()">×</button>
+  </div>
+  <form name="ticketForm" ng-submit="vm.saveTicket()" novalidate>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Ticket Title *</label>
+          <input class="form-control" ng-model="vm.form.title" required maxlength="120" placeholder="Example: Patient tab not loading">
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <select class="form-control" ng-model="vm.form.category" required>
+            <option ng-repeat="c in vm.categories" value="{{c}}">{{c}}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status *</label>
+          <select class="form-control" ng-model="vm.form.status" required>
+            <option ng-repeat="s in vm.statuses" value="{{s}}">{{s}}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Assignee</label>
+          <input class="form-control" ng-model="vm.form.assignee" placeholder="Developer / Support person">
+        </div>
+        <div class="form-group">
+          <label>Created Date *</label>
+          <input class="form-control" type="date" ng-model="vm.form.createdDate" required>
+        </div>
+        <div class="form-group">
+          <label>Resolved Date</label>
+          <input class="form-control" type="date" ng-model="vm.form.resolvedDate">
+        </div>
+        <div class="form-group full">
+          <label>Description</label>
+          <textarea class="form-control" rows="4" ng-model="vm.form.description" placeholder="Add ticket details, issue, resolution notes..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-default" ng-click="vm.closeTicketModal()">Cancel</button>
+      <button type="submit" class="btn btn-primary" ng-disabled="ticketForm.$invalid">{{vm.editing ? 'Update Ticket' : 'Create Ticket'}}</button>
+    </div>
+  </form>
+</div>
+
+<footer>
+  <span>Daily Tickets • AngularJS Front End</span>
+  <span>Data is stored only in this browser using Local Storage</span>
+</footer>
+
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
