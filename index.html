@@ -25,7 +25,7 @@
       Import JSON
       <input type="file" accept=".json" onchange="angular.element(this).scope().vm.importData(this.files[0])">
     </label>
-    <button class="btn btn-primary" ng-click="vm.openTicketModal()">+ Add Ticket</button>
+    <button class="btn btn-primary" ng-click="vm.openTicketModal()" ng-if="false"> + Add Ticket</button>
   </div>
 </header>
 
@@ -67,8 +67,8 @@
           <p>Seven-day ticket activity with change indicators</p>
         </div>
         <div class="panel-actions">
-          <button class="btn btn-primary" ng-click="vm.openTicketModal()">+ Add Ticket</button>
-          <button class="btn btn-default" ng-click="vm.goToCrud()">Manage All Tickets</button>
+          <button class="btn btn-primary" ng-click="vm.openTicketModal()" ng-if="false">+ Add Ticket</button>
+          <button class="btn btn-default" ng-click="vm.goToCrud()" ng-if="false">Manage All Tickets</button>
           <button class="btn btn-warning" ng-click="vm.toggleWeeklyEdit()">{{vm.editWeekly ? 'Stop Editing' : 'Edit Weekly Values'}}</button>
           <button class="btn btn-success" ng-if="vm.editWeekly" ng-click="vm.saveWeeklyValues()">Save Values</button>
           <button class="btn btn-default" ng-if="vm.editWeekly" ng-click="vm.resetWeeklyValues()">Reset Values</button>
